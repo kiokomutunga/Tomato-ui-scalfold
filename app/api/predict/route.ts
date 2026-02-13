@@ -10,6 +10,7 @@ export async function POST(req: Request){
 
     const backendForm = new FormData();
     backendForm.append("file", image);
+    //backend form fetch
     const res = await fetch("http://127.0.0.1:8000/predict", {
         method: "POST",
         body: backendForm,
