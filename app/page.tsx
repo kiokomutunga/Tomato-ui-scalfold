@@ -137,6 +137,34 @@ export default function Home() {
               <p className="text-green-400 text-lg">
                 Confidence: {result.confidence}%
               </p>
+              {result.disease_info && (
+      <div className="text-left text-slate-300 space-y-3 max-w-md">
+        <p>
+          <span className="font-semibold text-white">Description:</span>{" "}
+          {result.disease_info.description}
+        </p>
+
+        <p>
+          <span className="font-semibold text-white">Symptoms:</span>{" "}
+          {result.disease_info.symptoms}
+        </p>
+
+        <p>
+          <span className="font-semibold text-white">Treatment:</span>{" "}
+          {result.disease_info.treatment}
+        </p>
+
+        <p>
+          <span className="font-semibold text-white">Prevention:</span>{" "}
+          {result.disease_info.prevention}
+        </p>
+
+        <p>
+          <span className="font-semibold text-white">References:</span>{" "}
+          {result.disease_info.references}
+        </p>
+      </div>
+    )}
             </>
           )}
         </div>
