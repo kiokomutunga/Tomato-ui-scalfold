@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import ChatPanel from "./components/ChatPanel";
-import Link from "next/link"
 
 export interface PredictResult {
   prediction: string;
@@ -55,27 +54,10 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white">
 
-      {/* Navbar*/}
+      {/* ── Nav ── */}
       <nav className="px-8 py-5 flex items-center justify-between border-b border-gray-100">
-        <div>
-          <span className="text-gray-900 font-bold text-xl">Tomato</span>
-          <span className="text-green-600 font-bold text-xl">AI</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link  href="/history"          
-            className="flex items-center gap-2 text-gray-600 hover:text-green-700 transition font-medium border border-gray-200 hover:border-green-300 px-4 py-2 rounded-xl bg-white hover:bg-green-50"
-          >
-            Scan History
-          </Link>
-         <Link
-            href="/diseases"
-            className="flex items-center gap-2 text-gray-600 hover:text-green-700 transition font-medium border border-gray-200 hover:border-green-300 px-4 py-2 rounded-xl bg-white hover:bg-green-50"
-          >
-            Disease Lab
-          </Link>
-        </div>
-        
-        
+        <span className="text-gray-900 font-semibold text-lg tracking-tight">TomatoAI</span>
+        <span className="text-gray-400 text-sm">2025</span>
       </nav>
 
       {/* ── Page body ── */}
@@ -88,8 +70,8 @@ export default function Home() {
             Upload a tomato leaf photo
           </h1>
           <p className="text-gray-500 text-base leading-relaxed mb-10">
-            UPload a clear photo of the leaf in good lighting. The model will identify
-            the disease and tell you .
+            Take a clear photo of the leaf in good lighting. The model will identify
+            the disease and tell you what to do next.
           </p>
 
           {/* Drop zone */}
@@ -255,7 +237,7 @@ export default function Home() {
       {/* ── Footer ── */}
       <footer className="border-t border-gray-100 px-8 py-6 text-center">
         <p className="text-gray-300 text-xs">
-          TomatoAI
+          TomatoAI · Built with Next.js, TensorFlow and FastAPI
         </p>
       </footer>
 

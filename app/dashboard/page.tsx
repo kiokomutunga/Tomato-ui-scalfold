@@ -36,13 +36,24 @@ export default function Dashboard() {
         <Link href="/" className="font-bold text-gray-900 text-lg">
           Tomato<span className="text-green-700">AI</span>
         </Link>
-        <div className="flex items-center gap-6 text-sm">
-          <Link href="/diseases" className="text-gray-500 hover:text-gray-900 transition">Disease Library</Link>
-          <Link href="/dashboard" className="text-gray-900 font-medium">Dashboard</Link>
-          <Link href="/" className="bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800 transition text-xs font-semibold">
+        
+        <div className="flex items-center gap-3">
+          <Link
+          href="/history"
+          className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 bg-gray-50 border border-gray-200 hover:bg-green-50 hover:text-green-700 hover:border-green-300 transition-all duration-200"
+          >
+           Scan History
+          </Link>
+          <Link href="/" className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-800 transition text-xs font-semibold">
             New Scan
           </Link>
-        </div>
+          <Link
+         href="/diseases"
+        className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 bg-gray-50 border border-gray-200 hover:bg-green-50 hover:text-green-700 hover:border-green-300 transition-all duration-200"
+        >
+        Disease Lab
+        </Link>
+</div>
       </nav>
 
       <div className="max-w-5xl mx-auto px-10 py-14">
