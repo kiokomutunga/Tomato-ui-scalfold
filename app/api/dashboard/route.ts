@@ -8,23 +8,23 @@ export async function GET() {
 
     const [totalScans, diseaseCounts, recentScans, feedbackStats] = await Promise.all([
       // Total scans
-      db.collection("predictions").countDocuments(),
+      db.collection("prediction").countDocuments(),
 
       // Count per disease
-      db.collection("predictions").aggregate([
+      db.collection("prediction").aggregate([
         { $group: { _id: "$prediction", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
       ]).toArray(),
 
       // Last 5 scans
-      db.collection("predictions")
+      db.collection("prediction")
         .find({})
         .sort({ timestamp: -1 })
         .limit(5)
         .toArray(),
 
       // Feedback breakdown
-      db.collection("predictions").aggregate([
+      db.collection("prediction").aggregate([
         { $match: { user_feedback: { $exists: true } } },
         { $group: { _id: "$user_feedback", count: { $sum: 1 } } },
       ]).toArray(),

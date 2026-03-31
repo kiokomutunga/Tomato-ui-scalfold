@@ -121,7 +121,7 @@ export default function Home() {
                 <p className="text-gray-400 text-sm">
                   {dragOver ? "Drop it here" : "Drag & drop or click to browse"}
                 </p>
-                <p className="text-gray-300 text-xs mt-1">JPG, PNG, JPEG up to 10MB</p>
+                <p className="text-gray-300 text-xs mt-1">JPG, PNG,webp,  JPEG up to 10MB</p>
               </div>
             )}
             <input
@@ -150,7 +150,7 @@ export default function Home() {
 
           {/* Supported diseases */}
           <div className="mt-10">
-            <p className="text-xs text-gray-400 mb-3">This model can detect</p>
+            <p className="text-xs text-gray-400 mb-3">This model can detect with an accuracy of 88%</p>
             <p className="text-sm text-gray-500 leading-relaxed">
               Bacterial Spot, Early Blight, Late Blight, Leaf Mold, Septoria Leaf Spot,
               Spider Mites, Target Spot, Yellow Leaf Curl Virus, Mosaic Virus, and Healthy leaves.
