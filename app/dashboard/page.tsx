@@ -23,7 +23,9 @@ export default function Dashboard() {
       .then((d) => { setData(d); setLoading(false); });
   }, []);
 
-  const maxCount = data ? Math.max(...data.diseaseCounts.map((d) => d.count), 1) : 1;
+ const maxCount = data?.diseaseCounts?.length
+  ? Math.max(...data.diseaseCounts.map((d) => d.count), 1)
+  : 1;
 
   const healthyCount  = data?.diseaseCounts.find((d) => d._id === "Healthy")?.count ?? 0;
   const diseasedCount = (data?.totalScans ?? 0) - healthyCount;

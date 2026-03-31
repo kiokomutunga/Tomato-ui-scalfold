@@ -78,7 +78,8 @@ export default function HistoryPage() {
                 {/* Thumbnail */}
                 <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0">
                   <img
-                    src={`http://localhost:8000/uploads/${scan.image_path.split("/").pop()}`}
+                    //src={`http://localhost:8000/uploads/${scan.image_path.split("/").pop()}`}
+                    src={`http://localhost:8000/${scan.image_path}`}
                     alt={scan.prediction}
                     className="w-full h-full object-cover"
                     onError={(e) => {
