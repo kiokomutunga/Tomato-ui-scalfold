@@ -10,7 +10,7 @@ interface Message {
 
 interface Props {
   diseaseContext: PredictResult | null;
-}
+}d
 
 function generateSessionId() {
   return `session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -39,7 +39,7 @@ export default function ChatPanel({ diseaseContext }: Props) {
         role: "assistant",
         content: `I can see the model detected **${diseaseContext.prediction}** with ${(diseaseContext.confidence * 100).toFixed(1)}% confidence. Ask me anything — treatment, prevention, what to do next.`,
       }]);
-      setIsOpen(true); // auto open when result comes in
+      setIsOpen(false); // auto open when result comes in
     }
   }, [diseaseContext]);
 
@@ -48,7 +48,7 @@ export default function ChatPanel({ diseaseContext }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  async function sendMessage() {
+async function sendMessage() {
     if (!input.trim() || loading) return;
 
     const userMessage: Message = { role: "user", content: input };
@@ -59,32 +59,28 @@ export default function ChatPanel({ diseaseContext }: Props) {
     setError(null);
 
     try {
-      const res = await fetch("/api/chat", {
+      const res = await fetch("http://localhost:8000/chat", {  // FastAPI
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: updated, diseaseContext, sessionId }),
       });
 
       const data = await res.json();
-
       if (!res.ok || data.error) {
         setError(data.error ?? "Request failed");
-        setMessages(updated);
         return;
       }
-
       setMessages([...updated, { role: "assistant", content: data.reply }]);
     } catch (err) {
       setError("Network error — check your connection.");
-      console.error(err);
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadHistory() {
+async function loadHistory() {
     try {
-      const res  = await fetch("/api/chat/history");
+      const res  = await fetch("http://localhost:8000/chat/history");  //FastAPI
       const data = await res.json();
       setHistory(data);
       setShowHistory(true);
@@ -93,9 +89,11 @@ export default function ChatPanel({ diseaseContext }: Props) {
     }
   }
 
-  async function loadSession(sid: string) {
+async function loadSession(sid: string) {
+  if (!sid || sid === "undefined") return; //guard against undefined for string
     try {
-      const res     = await fetch(`/api/chat/history?sessionId=${sid}`);
+
+      const res     = await fetch(`http://localhost:8000/chat/history?sessionId=${sid}`);  // FastAPI
       const session = await res.json();
       setMessages(session.messages ?? []);
       setShowHistory(false);
@@ -188,7 +186,7 @@ export default function ChatPanel({ diseaseContext }: Props) {
               {history.map((s) => (
                 <button
                   key={s.sessionId}
-                  onClick={() => loadSession(s.sessionId)}
+                  onClick={() => loadSession(s.sessionId ?? s.sessionId)} //for both formats
                   className="w-full text-left px-4 py-3 hover:bg-slate-700 transition border-b border-slate-700 last:border-0"
                 >
                   <p className="text-white text-sm truncate">
