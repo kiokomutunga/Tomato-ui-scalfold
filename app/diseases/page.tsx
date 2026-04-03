@@ -4,29 +4,31 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 interface Disease {
-  key          : string;
-  name         : string;
-  severity     : string;
+  key           : string;
+  name          : string;
+  severity      : string;
   scientific_name: string;
-  description  : string;
-  symptoms     : string;
-  treatment    : string;
-  prevention   : string;
-  causes       : string;
-  references   : string[];
+  description   : string;
+  symptoms      : string;
+  treatment     : string;
+  prevention    : string;
+  causes        : string;
+  references    : string[];
 }
 
-const severityColor: Record<string, string> = {
-  Critical: "bg-red-50 text-red-700 border-red-100",
-  High    : "bg-orange-50 text-orange-700 border-orange-100",
-  Medium  : "bg-yellow-50 text-yellow-700 border-yellow-100",
-  None    : "bg-green-50 text-green-700 border-green-100",
+const severityMeta: Record<string, { label: string; dot: string; text: string }> = {
+  Critical: { label: "Critical",  dot: "#dc2626", text: "#dc2626" },
+  High    : { label: "High risk", dot: "#ea580c", text: "#ea580c" },
+  Medium  : { label: "Moderate",  dot: "#ca8a04", text: "#ca8a04" },
+  None    : { label: "Healthy",   dot: "#16a34a", text: "#16a34a" },
 };
 
 export default function DiseasesPage() {
-  const [diseases, setDiseases] = useState<Disease[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
+  const [diseases, setDiseases]   = useState<Disease[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState<string | null>(null);
+  const [selected, setSelected]   = useState<Disease | null>(null);
+  const [filter, setFilter]       = useState("All");
 
   useEffect(() => {
     fetch("http://localhost:8000/diseases/")
@@ -38,108 +40,215 @@ export default function DiseasesPage() {
       .catch((e) => { setError(e.message); setLoading(false); });
   }, []);
 
-  return (
-    <div className="min-h-screen bg-white">
+  const filters   = ["All", "Critical", "High", "Medium", "None"];
+  const displayed = filter === "All"
+    ? diseases
+    : diseases.filter((d) => d.severity === filter);
 
-      <nav className="px-8 py-5 flex items-center justify-between border-b border-gray-100">
-        <Link href="/" className="text-gray-900 font-semibold text-lg tracking-tight">TomatoAI</Link>
-        <div className="flex items-center gap-3">
-  <Link
-    href="/history"
-    className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 bg-gray-50 border border-gray-200 hover:bg-green-50 hover:text-green-700 hover:border-green-300 transition-all duration-200"
-  >
-    Scan History
-  </Link>
-  <Link
-    href="/dashboard"
-    className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 bg-gray-50 border border-gray-200 hover:bg-green-50 hover:text-green-700 hover:border-green-300 transition-all duration-200"
-  >
-    Dashboard
-  </Link>
-</div>
+  return (
+    <div style={{ minHeight: "100vh", backgroundColor: "#ffffff", fontFamily: "'Georgia', serif" }}>
+
+      {/* Nav */}
+      <nav style={{ padding: "20px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #f3f4f6", backgroundColor: "#fff", position: "sticky", top: 0, zIndex: 30 }}>
+        <Link href="/" style={{ textDecoration: "none" }}>
+          <span style={{ color: "#111827", fontWeight: 700, fontSize: 18 }}>Tomato</span>
+          <span style={{ color: "#16a34a", fontWeight: 700, fontSize: 18 }}>AI</span>
+        </Link>
+        <div style={{ display: "flex", gap: 10 }}>
+          <Link href="/history" style={{ textDecoration: "none", fontSize: 13, color: "#6b7280", padding: "8px 16px", border: "1px solid #e5e7eb", borderRadius: 10, backgroundColor: "#fff" }}>
+            Scan History
+          </Link>
+          <Link href="/dashboard" style={{ textDecoration: "none", fontSize: 13, color: "#6b7280", padding: "8px 16px", border: "1px solid #e5e7eb", borderRadius: 10, backgroundColor: "#fff" }}>
+            Dashboard
+          </Link>
+        </div>
       </nav>
 
-      <div className="max-w-4xl mx-auto px-8 py-16">
-        <p className="text-xs uppercase tracking-widest text-green-600 font-medium mb-4">Reference</p>
-        <h1 className="text-3xl font-bold text-gray-900 mb-3">Disease Lab</h1>
-        <p className="text-gray-500 text-base leading-relaxed mb-12 max-w-xl">
-          A complete guide to the 10 conditions this model can detect.
-          Each entry includes symptoms, treatment and prevention advice.
-        </p>
+      <div style={{ display: "flex", minHeight: "calc(100vh - 65px)" }}>
 
-        {/* Severity legend */}
-        <div className="flex flex-wrap gap-2 mb-10">
-          {Object.entries(severityColor).map(([level, cls]) => (
-            <span key={level} className={`text-xs px-3 py-1 rounded-full border font-medium ${cls}`}>
-              {level === "None" ? "Healthy" : level}
-            </span>
-          ))}
-        </div>
+        {/* Left sidebar — disease list */}
+        <div style={{ width: selected ? 340 : "100%", maxWidth: selected ? 340 : 900, margin: selected ? 0 : "0 auto", borderRight: selected ? "1px solid #f3f4f6" : "none", display: "flex", flexDirection: "column", overflowY: "auto" }}>
 
-        {loading && (
-          <div className="flex justify-center py-20">
-            <div className="flex gap-1.5">
-              <span className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-              <span className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: "120ms" }} />
-              <span className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: "240ms" }} />
+          {/* Header */}
+          <div style={{ padding: "48px 40px 24px" }}>
+            <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.12em", color: "#16a34a", fontWeight: 600, margin: "0 0 10px" }}>
+              Reference Guide
+            </p>
+            <h1 style={{ fontSize: selected ? 22 : 36, fontWeight: 700, color: "#111827", margin: "0 0 8px", lineHeight: 1.2 }}>
+              Disease Lab
+            </h1>
+            {!selected && (
+              <p style={{ fontSize: 15, color: "#6b7280", lineHeight: 1.7, margin: "0 0 28px", maxWidth: 480 }}>
+                A reference guide to all 10 conditions this model can detect. Select any disease to read the full profile.
+              </p>
+            )}
+
+            {/* Filter pills */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+              {filters.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  style={{
+                    fontSize: 12, padding: "5px 14px", borderRadius: 20,
+                    border: `1px solid ${filter === f ? "#16a34a" : "#e5e7eb"}`,
+                    backgroundColor: filter === f ? "#f0fdf4" : "#fff",
+                    color: filter === f ? "#16a34a" : "#6b7280",
+                    cursor: "pointer", fontWeight: filter === f ? 600 : 400,
+                  }}
+                >
+                  {f === "None" ? "Healthy" : f}
+                </button>
+              ))}
             </div>
           </div>
-        )}
 
-        {error && (
-          <p className="text-red-500 text-sm bg-red-50 border border-red-100 rounded-xl px-4 py-3">
-            {error} — make sure your FastAPI server is running.
-          </p>
-        )}
+          {/* Loading */}
+          {loading && (
+            <div style={{ textAlign: "center", padding: "60px 0" }}>
+              <div style={{ display: "flex", justifyContent: "center", gap: 6 }}>
+                {[0, 120, 240].map((d) => (
+                  <span key={d} style={{ width: 8, height: 8, backgroundColor: "#4ade80", borderRadius: "50%", display: "inline-block", animation: "bounce 1s infinite", animationDelay: `${d}ms` }} />
+                ))}
+              </div>
+              <p style={{ color: "#9ca3af", fontSize: 13, marginTop: 12 }}>Loading diseases...</p>
+            </div>
+          )}
 
-        {!loading && !error && (
-          <div className="space-y-3">
-            {diseases.map((disease) => (
-              <details key={disease.key} className="border border-gray-100 rounded-2xl group">
-                <summary className="px-6 py-5 cursor-pointer flex items-center justify-between list-none">
-                  <div className="flex items-center gap-4">
-                    <span className={`text-xs px-3 py-1 rounded-full border font-medium flex-shrink-0 ${severityColor[disease.severity]}`}>
-                      {disease.severity === "None" ? "Healthy" : disease.severity}
-                    </span>
-                    <div>
-                      <p className="text-gray-900 font-medium text-sm">{disease.name}</p>
-                      <p className="text-gray-400 text-xs italic mt-0.5">{disease.scientific_name}</p>
+          {/* Error */}
+          {error && (
+            <div style={{ margin: "0 40px", padding: "12px 16px", backgroundColor: "#fef2f2", border: "1px solid #fee2e2", borderRadius: 12 }}>
+              <p style={{ color: "#dc2626", fontSize: 13, margin: 0 }}>{error} — make sure your FastAPI server is running.</p>
+            </div>
+          )}
+
+          {/* Disease list */}
+          {!loading && !error && (
+            <div style={{ padding: "0 20px 40px" }}>
+              {displayed.map((disease) => {
+                const meta      = severityMeta[disease.severity] ?? severityMeta["None"];
+                const isActive  = selected?.key === disease.key;
+                return (
+                  <button
+                    key={disease.key}
+                    onClick={() => setSelected(isActive ? null : disease)}
+                    style={{
+                      width: "100%", textAlign: "left", display: "flex", alignItems: "center",
+                      gap: 14, padding: "14px 16px", borderRadius: 14, marginBottom: 4,
+                      border: `1px solid ${isActive ? "#bbf7d0" : "#f3f4f6"}`,
+                      backgroundColor: isActive ? "#f0fdf4" : "#fff",
+                      cursor: "pointer", transition: "all 0.15s",
+                    }}
+                  >
+                    {/* Severity dot */}
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: meta.dot, flexShrink: 0 }} />
+
+                    {/* Name + scientific */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: "#111827", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {disease.name}
+                      </p>
+                      <p style={{ fontSize: 11, color: "#9ca3af", margin: "2px 0 0", fontStyle: "italic", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {disease.scientific_name}
+                      </p>
                     </div>
-                  </div>
-                  <svg className="w-4 h-4 text-gray-300 transition-transform group-open:rotate-180 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </summary>
 
-                <div className="px-6 pb-6 border-t border-gray-50 pt-5">
-                  <p className="text-gray-500 text-sm leading-relaxed mb-6">{disease.description}</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-5">
-                    {[
-                      { label: "Symptoms",   value: disease.symptoms   },
-                      { label: "Treatment",  value: disease.treatment  },
-                      { label: "Prevention", value: disease.prevention },
-                    ].map((item) => (
-                      <div key={item.label}>
-                        <p className="text-xs uppercase tracking-widest text-gray-400 font-medium mb-2">{item.label}</p>
-                        <p className="text-gray-600 text-sm leading-relaxed">{item.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="border-t border-gray-50 pt-4">
-                    <p className="text-xs text-gray-400 font-medium mb-1">References</p>
-                    <p className="text-gray-400 text-xs leading-relaxed">
-                      {Array.isArray(disease.references) ? disease.references.join(" · ") : disease.references}
+                    {/* Severity label */}
+                    <span style={{ fontSize: 11, color: meta.text, fontWeight: 500, flexShrink: 0 }}>
+                      {meta.label}
+                    </span>
+
+                    {/* Arrow */}
+                    <svg style={{ width: 14, height: 14, color: "#d1d5db", flexShrink: 0, transform: isActive ? "rotate(90deg)" : "none", transition: "transform 0.15s" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Right panel — disease detail */}
+        {selected && (
+          <div style={{ flex: 1, overflowY: "auto", backgroundColor: "#fafafa" }}>
+
+            {/* Close bar */}
+            <div style={{ padding: "20px 40px", borderBottom: "1px solid #f3f4f6", backgroundColor: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: severityMeta[selected.severity]?.dot, flexShrink: 0 }} />
+                <p style={{ fontSize: 13, fontWeight: 600, color: "#111827", margin: 0 }}>{selected.name}</p>
+                <p style={{ fontSize: 11, color: "#9ca3af", margin: 0, fontStyle: "italic" }}>{selected.scientific_name}</p>
+              </div>
+              <button
+                onClick={() => setSelected(null)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", padding: 4 }}
+              >
+                <svg style={{ width: 18, height: 18 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: "40px" }}>
+
+              {/* Severity banner */}
+              <div style={{ padding: "10px 16px", borderRadius: 10, backgroundColor: selected.severity === "Critical" ? "#fef2f2" : selected.severity === "High" ? "#fff7ed" : selected.severity === "Medium" ? "#fefce8" : "#f0fdf4", border: `1px solid ${selected.severity === "Critical" ? "#fee2e2" : selected.severity === "High" ? "#fed7aa" : selected.severity === "Medium" ? "#fef08a" : "#bbf7d0"}`, marginBottom: 28, display: "inline-block" }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: severityMeta[selected.severity]?.text, margin: 0 }}>
+                  {selected.severity === "None" ? "✓ No disease" : `⚠ ${severityMeta[selected.severity]?.label} severity`}
+                </p>
+              </div>
+
+              {/* Description */}
+              <p style={{ fontSize: 15, color: "#374151", lineHeight: 1.8, margin: "0 0 36px", maxWidth: 600 }}>
+                {selected.description}
+              </p>
+
+              {/* Three columns */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24, marginBottom: 32 }}>
+                {[
+                  { label: "Symptoms",   value: selected.symptoms,   icon: "" },
+                  { label: "Treatment",  value: selected.treatment,  icon: "" },
+                  { label: "Prevention", value: selected.prevention, icon: "" },
+                ].map((item) => (
+                  <div key={item.label} style={{ backgroundColor: "#fff", border: "1px solid #f3f4f6", borderRadius: 14, padding: "20px" }}>
+                    <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em", color: "#9ca3af", fontWeight: 600, margin: "0 0 10px" }}>
+                      {item.icon} {item.label}
+                    </p>
+                    <p style={{ fontSize: 13, color: "#374151", lineHeight: 1.7, margin: 0 }}>
+                      {item.value}
                     </p>
                   </div>
-                </div>
-              </details>
-            ))}
+                ))}
+              </div>
+
+              {/* Causes */}
+              <div style={{ backgroundColor: "#fff", border: "1px solid #f3f4f6", borderRadius: 14, padding: "20px", marginBottom: 24 }}>
+                <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em", color: "#9ca3af", fontWeight: 600, margin: "0 0 10px" }}>
+                  Causes
+                </p>
+                <p style={{ fontSize: 13, color: "#374151", lineHeight: 1.7, margin: 0 }}>
+                  {selected.causes}
+                </p>
+              </div>
+
+              {/* References */}
+              <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: 20 }}>
+                <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em", color: "#9ca3af", fontWeight: 600, margin: "0 0 8px" }}>
+                  References
+                </p>
+                <p style={{ fontSize: 12, color: "#9ca3af", lineHeight: 1.7, margin: 0 }}>
+                  {Array.isArray(selected.references) ? selected.references.join(" · ") : selected.references}
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
-      <footer className="border-t border-gray-100 px-8 py-6 text-center">
-        <p className="text-gray-300 text-xs">TomatoAI · Built with Next.js, TensorFlow and FastAPI</p>
+      <footer style={{ borderTop: "1px solid #f3f4f6", padding: "20px 40px", textAlign: "center" }}>
+        <p style={{ color: "#d1d5db", fontSize: 12, margin: 0 }}>TomatoAI · Built with Next.js, TensorFlow and FastAPI</p>
       </footer>
     </div>
   );

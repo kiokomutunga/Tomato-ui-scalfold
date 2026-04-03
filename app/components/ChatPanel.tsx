@@ -8,6 +8,14 @@ interface Message {
   content: string;
 }
 
+interface SessionSummary {
+  sessionId  : string;
+  createdAt  : string | null;
+  updatedAt  : string | null;
+  disease_context?: { prediction?: string } | null;
+  messages?  : Message[];
+}
+
 interface Props {
   diseaseContext: PredictResult | null;
 }
@@ -19,27 +27,33 @@ function generateSessionId() {
 export default function ChatPanel({ diseaseContext }: Props) {
   const [isOpen, setIsOpen]           = useState(false);
   const [sessionId]                   = useState(generateSessionId);
-  const [messages, setMessages]       = useState<Message[]>([
-    {
-      role: "assistant",
-      content: "Upload a tomato leaf image and I will help you understand the diagnosis and what to do next.",
-    },
-  ]);
+  const [messages, setMessages]       = useState<Message[]>([{
+    role   : "assistant",
+    content: "Hi! Upload a tomato leaf image and I will help you understand the diagnosis. You can also ask me general tomato disease questions right now.",
+  }]);
   const [input, setInput]             = useState("");
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [history, setHistory]         = useState<any[]>([]);
+  const [history, setHistory]         = useState<SessionSummary[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const bottomRef                     = useRef<HTMLDivElement>(null);
 
-  // Reset chat when new image is analysed
+  // When a new image is analysed open chat and update context message
   useEffect(() => {
     if (diseaseContext) {
-      setMessages([{
-        role: "assistant",
-        content: `I can see the model detected **${diseaseContext.prediction}** with ${(diseaseContext.confidence * 100).toFixed(1)}% confidence. Ask me anything — treatment, prevention, what to do next.`,
-      }]);
-      setIsOpen(false); // auto open when result comes in
+      setMessages((prev) => {
+        // only add context message if not already there
+        const alreadySet = prev.some((m) =>
+          m.role === "assistant" && m.content.includes(diseaseContext.prediction)
+        );
+        if (alreadySet) return prev;
+        return [...prev, {
+          role   : "assistant",
+          content: `I can see the model detected **${diseaseContext.prediction.replace(/_/g, " ")}** with ${(diseaseContext.confidence * 100).toFixed(1)}% confidence. Ask me anything — treatment, prevention, what to do next.`,
+        }];
+      });
+      setIsOpen(true);
     }
   }, [diseaseContext]);
 
@@ -48,7 +62,8 @@ export default function ChatPanel({ diseaseContext }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-async function sendMessage() {
+  // ── Send message ────────────────────────────────────────────────────────────
+  async function sendMessage() {
     if (!input.trim() || loading) return;
 
     const userMessage: Message = { role: "user", content: input };
@@ -59,10 +74,15 @@ async function sendMessage() {
     setError(null);
 
     try {
-      const res = await fetch("http://localhost:8000/chat", {  // FastAPI
-        method: "POST",
+      const res = await fetch("http://localhost:8000/chat", {
+        method : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: updated, diseaseContext, sessionId }),
+        body   : JSON.stringify({
+          messages      : updated,
+          diseaseContext: diseaseContext ?? null,
+          sessionId     : sessionId,
+          scanId        : diseaseContext?._id ?? null,
+        }),
       });
 
       const data = await res.json();
@@ -71,31 +91,38 @@ async function sendMessage() {
         return;
       }
       setMessages([...updated, { role: "assistant", content: data.reply }]);
-    } catch (err) {
+    } catch {
       setError("Network error — check your connection.");
     } finally {
       setLoading(false);
     }
   }
 
-async function loadHistory() {
+  // ── Load history list ───────────────────────────────────────────────────────
+  async function loadHistory() {
+    setHistoryLoading(true);
+    setShowHistory(true);
+    setError(null);
     try {
-      const res  = await fetch("http://localhost:8000/chat/history");  //FastAPI
+      const res  = await fetch("http://localhost:8000/chat/history");
       const data = await res.json();
-      setHistory(data);
-      setShowHistory(true);
+      setHistory(Array.isArray(data) ? data : []);
     } catch {
       setError("Could not load history.");
+    } finally {
+      setHistoryLoading(false);
     }
   }
 
-async function loadSession(sid: string) {
-  if (!sid || sid === "undefined") return; //guard against undefined for string
+  // ── Load a specific session ─────────────────────────────────────────────────
+  async function loadSession(sid: string) {
+    if (!sid || sid === "undefined") return;
     try {
-
-      const res     = await fetch(`http://localhost:8000/chat/history?sessionId=${sid}`);  // FastAPI
+      const res     = await fetch(`http://localhost:8000/chat/history?sessionId=${sid}`);
       const session = await res.json();
-      setMessages(session.messages ?? []);
+      if (session.messages && session.messages.length > 0) {
+        setMessages(session.messages);
+      }
       setShowHistory(false);
     } catch {
       setError("Could not load session.");
@@ -109,64 +136,93 @@ async function loadSession(sid: string) {
     }
   }
 
+  // ── Helper — display label for a session ───────────────────────────────────
+  function sessionLabel(s: SessionSummary): string {
+    if (s.disease_context?.prediction) {
+      return s.disease_context.prediction.replace(/_/g, " ");
+    }
+    // fallback — show first user message if exists
+    const firstUser = s.messages?.find((m) => m.role === "user");
+    if (firstUser) return firstUser.content.slice(0, 40) + "...";
+    return "General chat";
+  }
+
+  function sessionDate(s: SessionSummary): string {
+    const raw = s.updatedAt ?? s.createdAt;
+    if (!raw) return "No date";
+    try {
+      return new Date(raw).toLocaleDateString("en-GB", {
+        day: "numeric", month: "short", year: "numeric",
+      });
+    } catch {
+      return "No date";
+    }
+  }
+
   return (
     <>
-      {/* ── Floating button ── */}
+      {/* Floating button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 bg-green-600 hover:bg-green-700 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110"
+        style={{
+          position: "fixed", bottom: 24, right: 24, zIndex: 50,
+          backgroundColor: "#16a34a", color: "#fff",
+          width: 52, height: 52, borderRadius: "50%",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          border: "none", cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+        }}
       >
         {isOpen ? (
-          // X icon when open
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         ) : (
-          // Chat bubble icon when closed
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z" />
           </svg>
         )}
-
-        {/* Unread dot — shows when there is a result but chat is closed */}
         {!isOpen && diseaseContext && (
-          <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white" />
+          <span style={{ position: "absolute", top: 2, right: 2, width: 10, height: 10, backgroundColor: "#ef4444", borderRadius: "50%", border: "2px solid #fff" }} />
         )}
       </button>
 
-      {/* ── Chat popup ── */}
+      {/* Chat popup */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-96 bg-slate-900 rounded-2xl shadow-2xl flex flex-col"
-          style={{ height: "520px" }}
-        >
+        <div style={{
+          position: "fixed", bottom: 88, right: 24, zIndex: 50,
+          width: 380, height: 520,
+          backgroundColor: "#0f172a", borderRadius: 20,
+          boxShadow: "0 8px 40px rgba(0,0,0,0.25)",
+          display: "flex", flexDirection: "column", overflow: "hidden",
+        }}>
+
           {/* Header */}
-          <div className="px-5 py-4 border-b border-slate-700 flex items-center justify-between rounded-t-2xl">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div style={{ padding: "14px 16px", borderBottom: "1px solid #1e293b", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 32, height: 32, backgroundColor: "#16a34a", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z" />
                 </svg>
               </div>
               <div>
-                <h2 className="text-white font-semibold text-sm">Disease Assistant</h2>
-                <p className="text-slate-400 text-xs">
-                  {diseaseContext ? `Detected: ${diseaseContext.prediction}` : "Waiting for image..."}
+                <p style={{ color: "#fff", fontSize: 13, fontWeight: 600, margin: 0 }}>Disease Assistant</p>
+                <p style={{ color: "#64748b", fontSize: 11, margin: 0 }}>
+                  {diseaseContext ? `Detected: ${diseaseContext.prediction.replace(/_/g, " ")}` : "Ask me anything"}
                 </p>
               </div>
             </div>
-
-            <div className="flex items-center gap-2">
+            <div style={{ display: "flex", gap: 8 }}>
               <button
                 onClick={loadHistory}
-                className="text-slate-400 hover:text-white text-xs border border-slate-700 px-2 py-1 rounded-lg transition"
+                style={{ fontSize: 11, color: "#94a3b8", backgroundColor: "transparent", border: "1px solid #1e293b", padding: "4px 10px", borderRadius: 8, cursor: "pointer" }}
               >
                 History
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-slate-400 hover:text-white transition"
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
@@ -175,25 +231,41 @@ async function loadSession(sid: string) {
 
           {/* History dropdown */}
           {showHistory && (
-            <div className="absolute z-10 bg-slate-800 border border-slate-700 rounded-xl shadow-lg w-72 right-4 top-16 max-h-56 overflow-y-auto">
-              <div className="px-4 py-3 border-b border-slate-700 flex justify-between items-center">
-                <span className="text-white text-sm font-medium">Past Sessions</span>
-                <button onClick={() => setShowHistory(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
+            <div style={{
+              position: "absolute", top: 58, right: 12, zIndex: 60,
+              backgroundColor: "#1e293b", border: "1px solid #334155",
+              borderRadius: 12, width: 280, maxHeight: 260, overflowY: "auto",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+            }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid #334155", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>Past Sessions</span>
+                <button onClick={() => setShowHistory(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 14 }}>✕</button>
               </div>
-              {history.length === 0 && (
-                <p className="text-slate-400 text-sm px-4 py-3">No past sessions found.</p>
+
+              {historyLoading && (
+                <p style={{ color: "#64748b", fontSize: 12, padding: "16px", textAlign: "center", margin: 0 }}>Loading...</p>
               )}
-              {history.map((s) => (
+
+              {!historyLoading && history.length === 0 && (
+                <p style={{ color: "#64748b", fontSize: 12, padding: "16px", textAlign: "center", margin: 0 }}>No past sessions yet.</p>
+              )}
+
+              {!historyLoading && history.map((s, i) => (
                 <button
-                  key={s.sessionId}
-                  onClick={() => loadSession(s.sessionId ?? s.sessionId)} //for both formats
-                  className="w-full text-left px-4 py-3 hover:bg-slate-700 transition border-b border-slate-700 last:border-0"
+                  key={s.sessionId ?? i}
+                  onClick={() => loadSession(s.sessionId)}
+                  style={{
+                    width: "100%", textAlign: "left", padding: "12px 16px",
+                    backgroundColor: "transparent", border: "none",
+                    borderBottom: "1px solid #334155", cursor: "pointer",
+                    display: "block",
+                  }}
                 >
-                  <p className="text-white text-sm truncate">
-                    {s.diseaseContext?.prediction ?? "Unknown disease"}
+                  <p style={{ color: "#e2e8f0", fontSize: 13, margin: "0 0 2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {sessionLabel(s)}
                   </p>
-                  <p className="text-slate-400 text-xs">
-                    {new Date(s.createdAt).toLocaleDateString()}
+                  <p style={{ color: "#64748b", fontSize: 11, margin: 0 }}>
+                    {sessionDate(s)}
                   </p>
                 </button>
               ))}
@@ -201,33 +273,34 @@ async function loadSession(sid: string) {
           )}
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
             {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[80%] px-4 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
-                    msg.role === "user"
-                      ? "bg-green-600 text-white rounded-br-sm"
-                      : "bg-slate-700 text-slate-100 rounded-bl-sm"
-                  }`}
-                >
+              <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
+                <div style={{
+                  maxWidth: "82%", padding: "10px 14px", borderRadius: 16,
+                  fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap",
+                  backgroundColor: msg.role === "user" ? "#16a34a" : "#1e293b",
+                  color: msg.role === "user" ? "#fff" : "#cbd5e1",
+                  borderBottomRightRadius: msg.role === "user" ? 4 : 16,
+                  borderBottomLeftRadius : msg.role === "user" ? 16 : 4,
+                }}>
                   {msg.content}
                 </div>
               </div>
             ))}
 
             {loading && (
-              <div className="flex justify-start">
-                <div className="bg-slate-700 px-4 py-3 rounded-2xl rounded-bl-sm flex gap-1">
-                  <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+              <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                <div style={{ backgroundColor: "#1e293b", padding: "10px 14px", borderRadius: 16, borderBottomLeftRadius: 4, display: "flex", gap: 5 }}>
+                  {[0, 150, 300].map((d) => (
+                    <span key={d} style={{ width: 7, height: 7, backgroundColor: "#475569", borderRadius: "50%", display: "inline-block", animation: "bounce 1s infinite", animationDelay: `${d}ms` }} />
+                  ))}
                 </div>
               </div>
             )}
 
             {error && (
-              <div className="bg-red-900/40 border border-red-700 text-red-300 text-xs px-4 py-2 rounded-xl">
+              <div style={{ backgroundColor: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#fca5a5", fontSize: 12, padding: "8px 12px", borderRadius: 10 }}>
                 {error}
               </div>
             )}
@@ -236,19 +309,28 @@ async function loadSession(sid: string) {
           </div>
 
           {/* Input */}
-          <div className="px-4 py-3 border-t border-slate-700 flex gap-2">
+          <div style={{ padding: "10px 12px", borderTop: "1px solid #1e293b", display: "flex", gap: 8 }}>
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask about treatment, prevention..."
-              className="flex-1 bg-slate-800 text-white placeholder-slate-500 rounded-xl px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-green-500"
+              style={{
+                flex: 1, backgroundColor: "#1e293b", color: "#fff",
+                border: "1px solid #334155", borderRadius: 12,
+                padding: "9px 14px", fontSize: 13, outline: "none",
+              }}
             />
             <button
               onClick={sendMessage}
               disabled={!input.trim() || loading}
-              className="bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
+              style={{
+                backgroundColor: !input.trim() || loading ? "#334155" : "#16a34a",
+                color: "#fff", border: "none", borderRadius: 12,
+                padding: "9px 16px", fontSize: 13, fontWeight: 500,
+                cursor: !input.trim() || loading ? "not-allowed" : "pointer",
+              }}
             >
               Send
             </button>

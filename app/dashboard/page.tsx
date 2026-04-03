@@ -31,7 +31,7 @@ export default function Dashboard() {
   const diseasedCount = (data?.totalScans ?? 0) - healthyCount;
 
   return (
-    <div className="min-h-screen bg-[#f7f5f0]">
+    <div className="min-h-screen bg-[#f7f5f0] " style ={{fontFamily: "'Georgia', serif"}}>
 
       {/* Nav */}
       <nav className="px-10 py-5 flex items-center justify-between border-b border-gray-200 bg-white">
